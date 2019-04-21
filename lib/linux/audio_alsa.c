@@ -33,7 +33,7 @@ void audio_alsa_init(void){
 	snd_pcm_sw_params_t*                    sw;
 	snd_pcm_sw_params_malloc              (&sw);
 	snd_pcm_sw_params_current             (pcm, sw);
-	snd_pcm_sw_params_set_start_threshold (pcm, sw, HC_PERIOD_SIZE * 2.5);
+	snd_pcm_sw_params_set_start_threshold (pcm, sw, HC_PERIOD_SIZE * 2.25);
 	snd_pcm_sw_params                     (pcm, sw);
 	snd_pcm_sw_params_free                (sw);
 

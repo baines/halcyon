@@ -22,21 +22,22 @@ all: $(LIB_OUT) $(PROJECTS)
 $(LIB_OUT): $(LIB_OBJ)
 	ar rcs $@ $^
 
+.SECONDARY:
 .SECONDEXPANSION:
 
 $(PROJECTS): $$(PRJ_OBJ_$$@) $$(PRJ_DAT_$$@) $$(PRJ_HDR_$$@) $(LIB_OUT)
 	$(CC) -I. $(CFLAGS) $(PRJ_OBJ_$@) $(PRJ_DAT_$@) $(LIB_OUT) -o $@ $(LDFLAGS)
 
-$(LIB_OBJ): build/%.o: lib/%.c $(LIB_HDR) halcyon.h halcyonix.h | build/$(BACKEND)
+$(LIB_OBJ): build/%.o: lib/%.c $(LIB_HDR) halcyon.h halcyonix.h | build/$(BACKEND)/
 	$(CC) -I. $(CFLAGS) -c $< -o $@
 
-build/%.res.o: src/$$(notdir $$(@D))/res/$$(notdir %) | $$(@D)
+build/%.res.o: src/$$(notdir $$(@D))/res/$$(notdir %) | $$(@D)/
 	(cd $(<D) && ld -r -b binary -z noexecstack $(<F) -o ../../../$@)
 
-build/%.o: src/%.c $$(PRJ_HDR_$$(notdir $$(@D))) | $$(@D)
+build/%.o: src/%.c $$(PRJ_HDR_$$(notdir $$(@D))) | $$(@D)/
 	$(CC) -I. $(CFLAGS) -Isrc/common -c $< -o $@
 
-build/$(BACKEND) build/tracker build/intro build/common:
+build/%/:
 	mkdir -p $@
 
 clean:
