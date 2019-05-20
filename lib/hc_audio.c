@@ -170,7 +170,7 @@ static void chan_process_noise(void){
 	struct chan_state* c = state + CHAN_IDX_NOISE;
 	struct hc_s* s = hc_snd + CHAN_IDX_NOISE;
 
-	if(!chan_freq_set(c, s->pitch, 16.0f))
+	if(!chan_freq_set(c, s->pitch, 8.0f))
 		return;
 
 	if(s->rst){
@@ -212,6 +212,8 @@ void hc_audio_frame(void){
 
 	memset(hc_midi, 0, sizeof(hc_midi));
 	hc_midi_count = 0;
+
+	memset(hc_samples, 0, sizeof(hc_samples));
 
 	chan_process_square(CHAN_IDX_SQUARE0);
 	chan_process_square(CHAN_IDX_SQUARE1);

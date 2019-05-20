@@ -71,7 +71,7 @@ static inline void line_setup(v2* restrict a, v2* restrict b, ln_state* restrict
 
 __attribute__((always_inline, flatten))
 static inline bool line_step_x(v2* restrict a, v2* restrict b, ln_state* restrict s, plot_fn plot, uint32_t color){
-	while(a->x != b->x){
+	while(a->x != b->x + s->inc){
 		plot(a->x, a->y, color);
 		a->x += s->inc;
 
@@ -89,7 +89,7 @@ static inline bool line_step_x(v2* restrict a, v2* restrict b, ln_state* restric
 
 __attribute__((always_inline, flatten))
 static inline bool line_step_y(v2* restrict a, v2* restrict b, ln_state* restrict s, plot_fn plot, uint32_t color){
-	if(a->y != b->y){
+	if(a->y <= b->y){
 		plot(a->x, a->y, color);
 		++a->y;
 

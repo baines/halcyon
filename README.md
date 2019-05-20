@@ -1,6 +1,9 @@
 HALCYON is a C platform library in the vein of SDL, except with
 a focus on extreme API minimalism and artificial limitation.
 
+*NEW* single header micro version `hc0_linux.h` for Linux (no kbd/audio)
+ - used by included demo program "spectre"
+
 Features include:
 
  - Single window locked to 480p (240p upscaled 2x)
@@ -19,3 +22,5 @@ Features include:
 
 A demonstration "intro" is included.    
 A tracker is also under development, to be included soon™.
+
+To build everything, type: `make`
