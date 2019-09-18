@@ -339,7 +339,7 @@ static inline void _hc_line_setup(hc_v2* restrict a, hc_v2* restrict b, _hc_ln_s
 
 __attribute__((always_inline, flatten))
 static inline _Bool _hc_line_step_x(hc_v2* restrict a, hc_v2* restrict b, _hc_ln_state* restrict s, _hc_plot_fn plot, uint32_t color){
-	while(a->x != b->x + s->inc){
+	while(a->x != b->x){
 		plot(a->x, a->y, color);
 		a->x += s->inc;
 
@@ -352,12 +352,13 @@ static inline _Bool _hc_line_step_x(hc_v2* restrict a, hc_v2* restrict b, _hc_ln
 
 		s->err += s->ay2;
 	}
+	plot(a->x, a->y, color);
 	return 0;
 }
 
 __attribute__((always_inline, flatten))
 static inline _Bool _hc_line_step_y(hc_v2* restrict a, hc_v2* restrict b, _hc_ln_state* restrict s, _hc_plot_fn plot, uint32_t color){
-	if(a->y <= b->y){
+	if(a->y != b->y){
 		plot(a->x, a->y, color);
 		++a->y;
 
@@ -369,6 +370,7 @@ static inline _Bool _hc_line_step_y(hc_v2* restrict a, hc_v2* restrict b, _hc_ln
 		s->err += s->ax2;
 		return 1;
 	}
+	plot(a->x, a->y, color);
 	return 0;
 }
 
