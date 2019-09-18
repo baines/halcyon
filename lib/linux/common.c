@@ -7,6 +7,7 @@
 #include <poll.h>
 #include <sys/timerfd.h>
 #include "halcyon.h"
+#include "../hc_backend.h"
 
 void video_x11_init  (const char* name, size_t w, size_t h);
 void video_x11_frame (void);
@@ -54,7 +55,7 @@ void hc_backend_frame(uint8_t flags){
 			},
 			.it_interval = {
 				.tv_sec = 0,
-				.tv_nsec = (1000000000UL / 60UL),
+				.tv_nsec = (1000000000UL / HC_FPS),
 			}
 		};
 		timerfd_settime(g_pollfds[fd_index_timer].fd, 0, &spec, NULL);

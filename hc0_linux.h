@@ -46,7 +46,7 @@ enum { HC_CLEAR=1, HC_NODRAW=2, HC_NOESC=4 };
 // begin private-ish stuff
 
 #define HC_VERSION      "0.1 ZERO"
-#define HC_FPS          60
+#define HC_FPS          60UL
 
 __attribute__((always_inline))
 static inline void asmemset(register void* _dest, uint32_t _num, size_t _count){
@@ -231,7 +231,7 @@ void hc_finish(uint8_t flags){
 			},
 			.it_interval = {
 				.tv_sec = 0,
-				.tv_nsec = (1000000000UL / 60UL),
+				.tv_nsec = (1000000000UL / HC_FPS),
 			}
 		};
 		timerfd_settime(_hc_priv.pollfds[0].fd, 0, &spec, NULL);
@@ -339,7 +339,7 @@ static inline void _hc_line_setup(hc_v2* restrict a, hc_v2* restrict b, _hc_ln_s
 
 __attribute__((always_inline, flatten))
 static inline _Bool _hc_line_step_x(hc_v2* restrict a, hc_v2* restrict b, _hc_ln_state* restrict s, _hc_plot_fn plot, uint32_t color){
-	while(a->x != b->x){
+	while(a->x != b->x + s->inc){
 		plot(a->x, a->y, color);
 		a->x += s->inc;
 
@@ -357,7 +357,7 @@ static inline _Bool _hc_line_step_x(hc_v2* restrict a, hc_v2* restrict b, _hc_ln
 
 __attribute__((always_inline, flatten))
 static inline _Bool _hc_line_step_y(hc_v2* restrict a, hc_v2* restrict b, _hc_ln_state* restrict s, _hc_plot_fn plot, uint32_t color){
-	if(a->y != b->y){
+	if(a->y <= b->y){
 		plot(a->x, a->y, color);
 		++a->y;
 
