@@ -164,10 +164,10 @@ int main(void){
                 { +1, +1, 0, 1 },
             };
 
-            // starting offsets for the clockwise scren axis check for each mask 0-10
-            // -1 entries should not be possible to access (mask 5, 7)
+            // starting offsets for the clockwise scren axis check for each mask 0-12
+            // -1 entries should not be possible to access (mask 5, 7, 10, 11)
             static const int starts[] = {
-                0, 0, 1, 0, 2, -1, 1, -1, 3, 3, 2
+                0, 0, 1, 0, 2, -1, 1, -1, 3, 3, -1, -1, 2
             };
 
             v4 points[20];
