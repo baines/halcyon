@@ -118,9 +118,8 @@ int main(void){
             //
             // the output points are ordered to be drawn as a triangle fan, starting from point[0]
             //
-            // the literal corner cases are handled at the end - using the edge_mask, exit_index, inside vars
-            // to track their state and insert extra vertices at the corners where needed for the output points
-            // to represent the clipped filled polygon properly.
+            // the literal corner cases are handled using a separate mask with a different set of bits,
+            // which tracks intersections with the edges outside the screen (i.e. 2 per corner)
             //
 
             uint8_t vmask[3] = {};
@@ -156,30 +155,60 @@ int main(void){
                 { 0, -1, 1 },
             };
 
-            // homogeneous coords (points) for each of the 4 corners: topleft, topright, bottomleft, bottomright (3, 6, 9, 12 masks)
-            static const v4 corners[4] = {
+            // starting offsets for the clockwise scren axis check for each mask 0-12
+            static const int starts[] = {
+                0, 0, 1, 0, 2, 0, 1, 0, 3, 3, 1, 1, 2
+            };
+
+            // corner_test_masks: masks for each corner. this is using a different bitset than for axes above (8bit instead of 4)
+            // so that each corner has 2 bits as follows:
+            //
+            //    2     32
+            //    |     |
+            // 1--+-----+-- 4
+            //    |     |
+            //    |     |
+            //    |     |
+            // 16-+-----+-- 64
+            //    |     |
+            //    8    128
+            //
+            // the order may seem bizzare. it was based on going clockwise left, top, right, bottom from 1-128 starting with "negative" sides based on x/y coords
+            // where y is negative towards the top of the screen, x is negative towards the left.
+            //
+            // i.e. 1 is negative y on the left
+            //      2 is negative x on the top
+            //      4 is negative y on the right
+            //      8 is negative x on the bottom
+            //
+            //      then it goes around the clock again for positive instead of negative
+            //
+            // there is probably a better order that would simplify some of the shifting etc, but this is the one I came up with.
+            // and now that the program is working (I think...) I don't feel like figuring out another one (yet?..)
+            //
+            static const uint8_t corner_test_masks[] = {
+                3, 3, 36, 24, 24, 36, 192, 192
+            };
+
+            // stores the bits for the 8 bit mask above, used to test if a corner should be added.
+            uint8_t exterior_edge_mask = 0;
+
+            // homogeneous coords (points) of the 4 screen corners corresponding to the above masks
+            static const v4 corners[] = {
+                { -1, -1, 0, 1 },
                 { -1, -1, 0, 1 },
                 { +1, -1, 0, 1 },
                 { -1, +1, 0, 1 },
+                { -1, +1, 0, 1 },
+                { +1, -1, 0, 1 },
                 { +1, +1, 0, 1 },
-            };
-
-            // starting offsets for the clockwise scren axis check for each mask 0-12
-            // -1 entries should not be possible to access (mask 5, 7, 10, 11)
-            static const int starts[] = {
-                0, 0, 1, 0, 2, -1, 1, -1, 3, 3, -1, -1, 2
+                { +1, +1, 0, 1 },
             };
 
             v4 points[20];
             v4* q = points;
 
-            // edge_mask tracks the state of intersections.
-            // if it is not zero at the end of the axis checks, then we need to add some extra points at the corners.
-            uint8_t edge_mask = 0;
-
-            // exit_index holds the index into the output point array where the corresponding triangle edge left the screen.
-            // it is used to know where to insert extra corner points at the end (since the output points are ordered).
-            int exit_index[4] = {};
+            printf("--------------------\n");
 
             // for each of the 3 triangle edges...
             for(int i = 0; i < 3; ++i) {
@@ -197,25 +226,80 @@ int main(void){
                     continue;
                 }
 
-                // both outside -> skip this edge entirely, it can't add any visible points
-                if(vmask[i] & vmask[j]) {
+                uint8_t xmask = vmask[i] ^ vmask[j];
+
+                // if xor mask is zero, i.e. vmask[i] == vmask[j], then points are in the same "outside 8th" of the screen
+                // and can't add any visible points, continue
+                if(xmask == 0) {
+                    continue;
+                }
+
+                uint8_t amask = vmask[i] & vmask[j];
+
+                // if the AND mask is not zero, then both points are on the same "outside 4th" side of the screen.
+                // it can't add any visible points EXCEPT corners. we check the masks to find the corner cases,
+                // then continue without doing any of the cross product stuff.
+
+                if(amask) {
+                    const uint8_t side = LOG2(amask);
+                    const bool swap = vmask[i] > vmask[j];
+
+                    // we need to check positive before negative if the "from" mask is bigger than "to"
+                    // otherwise negative first. this is to keep the output points in correct fan order.
+
+                    // TODO: use a function or something, this is pretty silly.
+                    if(swap)
+                        goto pos_check;
+
+neg_check:
+                    if(xmask & 0x3) {
+                        const uint8_t id = side;
+
+                        exterior_edge_mask |= (1 << id);
+                        printf("update ext mask - v1: %d, %d (%#x)\n", id, exterior_edge_mask, exterior_edge_mask);
+
+                        uint8_t corner_test_mask = corner_test_masks[id];
+                        if((exterior_edge_mask & corner_test_mask) == corner_test_mask) {
+                            printf("add corner - v1 %d\n", id);
+                            *q++ = corners[id];
+                        }
+                    }
+
+                    if(swap)
+                        continue;
+
+pos_check:
+                    if(xmask & 0xc) {
+                        const uint8_t id = side + 4;
+
+                        exterior_edge_mask |= (1 << id);
+                        printf("update ext mask + v1: %d, %d (%#x)\n", id, exterior_edge_mask, exterior_edge_mask);
+
+                        uint8_t corner_test_mask = corner_test_masks[id];
+                        if((exterior_edge_mask & corner_test_mask) == corner_test_mask) {
+                            printf("add corner + v1 %d\n", id);
+                            *q++ = corners[id];
+                        }
+                    }
+
+                    if(swap)
+                        goto neg_check;
+
                     continue;
                 }
 
                 // get the vector between the two points
                 v4 line = wcross(orig.v[i], orig.v[j]);
 
-                bool inside = false;
+                // which screen edge to check first, then continuing clockwise
                 int start = starts[vmask[i]];
 
                 // mask 0 means it's a point inside the screen
                 if(vmask[i] == 0) {
                     printf("[%d] vmi 0\n", i);
-                    inside = true;
                     *q++ = orig.v[i];
+                    start = starts[vmask[j]];
                 }
-
-                uint8_t local_edge_mask = 0;
 
                 // check for intersections against the 4 edges
                 for(int z = 0; z < 4; ++z) {
@@ -232,67 +316,25 @@ int main(void){
                     const float w = __builtin_fabs(p[3]);
                     const int xyi = ((e^1)&1);
                     const float xy = p[xyi];
+                    const int samesign = signbit(p[3]) == signbit(p[xyi]);
 
-                    // the point of intersection might be outside the screen on the "other" axis
-                    // we don't want to add a point in that case.
+                    // if the intersection point is visible, addd it
+                    // otherwise test if we need to add a corner
 
                     if(xy <= w && xy >= -w) {
-
-                        // we just insersected, so our inside/outside-ness swaps
-                        inside = !inside;
-
                         printf("add v %x\n", e);
-
-                        // record which screen-edges this triangl-edge intersects
-                        local_edge_mask |= (1 << e);
-
-                        // add the point to the output
                         *q++ = p;
+                    } else {
+                        const uint8_t id = (e^1)+(e&2)+samesign*2; // I just brute forced the truth table for this one...
+                        exterior_edge_mask |= (1 << id);
+                        printf("update ext mask v2: %d, %d (%#x)\n", id, exterior_edge_mask, exterior_edge_mask);
 
-                        // if we're exiting the screen, record this info in exit_index
-                        if(!inside) {
-                            exit_index[e] = (q - points);
+                        uint8_t corner_test_mask = corner_test_masks[id];
+                        if((exterior_edge_mask & corner_test_mask) == corner_test_mask) {
+                            printf("add corner v2 %d\n", id);
+                            *q++ = corners[id];
                         }
                     }
-                }
-
-                // update the overall screen edge intersection state with xor
-                edge_mask ^= local_edge_mask;
-            }
-
-            if(edge_mask) {
-                if((edge_mask == 0xa || edge_mask == 0x5)) {
-                    printf("TODO: | - corner case\n");
-
-                    // we need to add 2 adjacent corners
-                    //
-                    //  a --- b
-                    //  |     |
-                    //  c --- d
-                    //
-                    // for mask 0xa, either a+c or b+d
-                    // for mask 0x5, either a+b or c+d
-                    //
-                    // which pair depends on if any point in the triangle is to the left/right (for 0xa) or up/down (for 0x5) of the screen.
-                    // TODO: track this info
-
-                } else {
-                    // add single corner
-
-                    assert((edge_mask % 3) == 0);
-
-                    //printf("indices: %d %d %d %d\n", exit_index[0], exit_index[1], exit_index[2], exit_index[3]);
-
-                    int exit_i = exit_index[LOG2(edge_mask & 0x5)] | exit_index[LOG2(edge_mask & 0xa)];
-
-                    printf("adding corner %x %d %zd\n", edge_mask, exit_i, (q - points));
-
-                    // shift existing points to make room for the new one
-                    memmove(points + exit_i + 1, points + exit_i, sizeof(v4) * ((q - points) - exit_i));
-
-                    // (* 11 & 7) is a trick for doing (/ 3) without integer division.
-                    points[exit_i] = corners[((edge_mask * 11) & 7) - 1];
-                    ++q;
                 }
             }
 
